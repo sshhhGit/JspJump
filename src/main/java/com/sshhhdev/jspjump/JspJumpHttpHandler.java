@@ -142,9 +142,25 @@ public final class JspJumpHttpHandler extends HttpRequestHandler {
         Project bestProject = null;
         JspLocator.Result best = null;
         List<String> tried = List.of();
-        // phase 1: each project's screen JSP (+ includes, <script src>) only; phase 2: everything
+
+        // Which project serves this page? (Tomcat started from IntelliJ: port → docBase → project)
+        ServerProjectResolver.Hit served = req.project == null || req.project.isBlank()
+                ? ServerProjectResolver.projectForOrigin(origin) : null;
+        if (served != null) out.put("projectBy", served.reason());
+        // groups searched in order; a later group is only searched when nothing was found before
+        List<List<Project>> groups = new ArrayList<>();
+        List<Project> ordered = orderedProjects(served != null ? served.project().getName() : req.project);
+        if (served != null) {
+            groups.add(List.of(served.project()));
+            groups.add(ordered.subList(1, ordered.size()));
+        } else {
+            groups.add(ordered);
+        }
+
+        // per group: phase 1 = each project's screen JSP (+ includes, <script src>) only; phase 2 = everything
+        for (List<Project> group : groups)
         for (int phase = 1; phase <= 2 && best == null; phase++)
-        for (Project p : orderedProjects(req.project)) {
+        for (Project p : group) {
             if (p.isDisposed() || p.isDefault()) continue;
             final JumpRequest r = req;
             JspLocator.Result res;

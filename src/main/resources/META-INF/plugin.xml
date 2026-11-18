@@ -37,6 +37,8 @@
       <li>AUIGrid columns: <code>.addColumnCustom("dataField", ...)</code> and <code>dataField: "..."</code>
       (function names are configurable)</li>
       <li>Button / label text, then the nearest ancestor with an id</li>
+      <li>With several open projects, the project that serves the page wins: for a Tomcat run configuration the page
+      port is mapped to its deployed <code>docBase</code> and the project containing it</li>
       <li>JSP files named after the page URL or the screen root element are searched first, then the scripts they
       load with <code>&lt;script src&gt;</code> (grid columns defined in JS), then other JSPs and project scripts</li>
     </ul>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSP Jump</title>
+<style>
+  :root { --c: #2E6BD9; --bg: #fff; --fg: #222; --mut: #666; --line: #e3e6ea; --ok: #2E7D32; --err: #C62828; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1e1f22; --fg: #ddd; --mut: #999; --line: #3a3d41; } }
+  body { font: 15px/1.65 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--fg);
+         max-width: 820px; margin: 32px auto; padding: 0 16px; }
+  h1 { font-size: 24px; margin-bottom: 4px; } h2 { font-size: 18px; margin-top: 32px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .langs button { border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 14px; padding: 2px 12px; cursor: pointer; font-size: 13px; }
+  .langs button.on { background: var(--c); border-color: var(--c); color: #fff; }
+  .sub { color: var(--mut); margin-top: 0; }
+  .step { display: flex; gap: 12px; margin: 14px 0; }
+  .num { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--c); color: #fff; text-align: center; line-height: 28px; font-weight: bold; }
+  a.bm { display: inline-block; background: var(--c); color: #fff; padding: 8px 20px; border-radius: 20px; text-decoration: none;
+         font-weight: bold; cursor: grab; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 13px; }
+  code, textarea { font: 13px Consolas, monospace; }
+  textarea { width: 100%; height: 76px; box-sizing: border-box; background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  .note { color: var(--mut); font-size: 14px; }
+  #pingBtn { font: inherit; padding: 4px 14px; cursor: pointer; }
+  #pingResult.ok { color: var(--ok); } #pingResult.err { color: var(--err); }
+  [data-lang] { display: none; }
+  html[lang="ko"] [data-lang="ko"], html[lang="en"] [data-lang="en"] { display: revert; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>JSP Jump <span style="font-size:14px;color:var(--mut)">{{VERSION}}</span></h1>
+  <div class="langs"><button type="button" data-set="ko">한국어</button> <button type="button" data-set="en">English</button></div>
+</div>
+<p class="sub" data-lang="ko">크롬에서 로컬 서버 화면의 버튼·입력칸·그리드 컬럼을 클릭하면 IntelliJ가 그 JSP 줄을 엽니다.
+브라우저 쪽은 <b>북마크 하나</b>만 추가하면 됩니다(브라우저당 처음 한 번).</p>
+<p class="sub" data-lang="en">Click a button, input or grid column on a page served by your local server and IntelliJ opens the JSP line
+that defines it. The browser only needs <b>one bookmark</b> (once per browser).</p>
+
+<!-- 1. bookmark -->
+<h2><span data-lang="ko">1. 북마크 추가 (처음 한 번)</span><span data-lang="en">1. Add the bookmark (once)</span></h2>
+<div class="step"><div class="num">1</div><div>
+  <span data-lang="ko">크롬 북마크바가 안 보이면 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (Mac: <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>)로 켭니다.</span>
+  <span data-lang="en">If the bookmarks bar is hidden, show it with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (Mac: <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>).</span>
+</div></div>
+<div class="step"><div class="num">2</div><div>
+  <span data-lang="ko">아래 파란 버튼을 마우스로 <b>끌어서 북마크바에 놓습니다.</b> (클릭이 아니라 드래그)</span>
+  <span data-lang="en"><b>Drag</b> the blue button below <b>onto the bookmarks bar</b> (drag, do not click).</span>
+  <p><a class="bm" id="bm" href="{{LOADER_HREF}}">JSP Jump</a></p>
+</div></div>
+<div class="step"><div class="num">3</div><div>
+  <span data-lang="ko">드래그가 안 되면: 북마크바에서 오른쪽 클릭 → <b>페이지 추가</b> → 이름 <code>JSP Jump</code>, URL에 아래 내용을 붙여 넣기</span>
+  <span data-lang="en">If dragging does not work: right-click the bookmarks bar → <b>Add page</b> → name <code>JSP Jump</code>, paste the text below as the URL.</span>
+  <textarea readonly onclick="this.select()">{{LOADER_TEXT}}</textarea>
+</div></div>
+<p class="note" data-lang="ko">북마크에는 "IDE에서 스크립트를 받아 오라"는 짧은 코드만 들어 있습니다. 플러그인을 업데이트해도 북마크는 다시 만들 필요가 없고,
+IDE 포트가 바뀌어도(63342~63361) 자동으로 찾아갑니다. 플러그인만으로는 크롬 화면의 클릭을 가로챌 수 없어서 이 북마크가 필요합니다.</p>
+<p class="note" data-lang="en">The bookmark only contains a short loader that fetches the script from the IDE, so plugin updates never require a new
+bookmark, and the IDE is found automatically even when its port changes (63342–63361). It is needed because only a script running in
+the page can intercept your click; the IDE plugin alone cannot touch the browser page.</p>
+
+<!-- 2. test -->
+<h2><span data-lang="ko">2. 연결 확인</span><span data-lang="en">2. Check the connection</span></h2>
+<p><button id="pingBtn" type="button"><span data-lang="ko">연결 테스트</span><span data-lang="en">Test connection</span></button>
+  <span id="pingResult"></span></p>
+
+<!-- 3. usage -->
+<h2><span data-lang="ko">3. 사용법</span><span data-lang="en">3. Usage</span></h2>
+<ol data-lang="ko">
+  <li>로컬 서버 화면(예: <code>http://localhost:8080/...</code>)에서 북마크 <b>JSP Jump</b>를 누릅니다 → 위쪽에 "요소를 클릭하세요" 안내, 마우스 아래 요소가 파란 상자로 표시됩니다.</li>
+  <li>버튼·입력칸·라벨·그리드 헤더나 셀을 <b>한 번 클릭</b> → IntelliJ에서 JSP 해당 줄이 열립니다. 이 클릭은 화면에 전달되지 않아 실제 저장·조회는 일어나지 않습니다.</li>
+  <li>후보가 여러 개면 IntelliJ에 목록이 뜹니다. 결과는 화면 오른쪽 아래에 잠깐 표시됩니다.</li>
+  <li>취소: <kbd>Esc</kbd> 또는 북마크를 한 번 더 누르기</li>
+</ol>
+<ol data-lang="en">
+  <li>On your local page (e.g. <code>http://localhost:8080/...</code>) click the <b>JSP Jump</b> bookmark → a banner asks you to click an element and the element under the mouse is outlined in blue.</li>
+  <li><b>Click once</b> on a button, input, label or grid header/cell → IntelliJ opens the JSP line. The click is not passed to the page, so nothing is saved or submitted.</li>
+  <li>With several candidates IntelliJ shows a chooser. The result is shown briefly at the bottom right of the page.</li>
+  <li>Cancel: <kbd>Esc</kbd> or click the bookmark again.</li>
+</ol>
+
+<!-- 4. troubleshooting -->
+<h2><span data-lang="ko">4. 문제 해결</span><span data-lang="en">4. Troubleshooting</span></h2>
+<table data-lang="ko">
+  <tr><th style="width:34%">증상</th><th>해결</th></tr>
+  <tr><td>"IntelliJ를 찾을 수 없습니다"</td><td>IntelliJ가 켜져 있고 <i>Settings | Plugins</i>에 JSP Jump가 설치·활성화돼 있는지 확인하세요.
+    IDE 포트를 직접 바꿨다면(<i>Settings | Build, Execution, Deployment | Debugger | Built-in server port</i>) 63342~63361 사이로 두세요. 현재 이 IDE의 포트: <b>{{PORT}}</b></td></tr>
+  <tr><td>"Origin not allowed"</td><td>회사 IP·호스트명(예: <code>http://192.168.0.10:8080</code>)으로 접속한 경우입니다.
+    IntelliJ 오른쪽 아래 알림의 <b>Allow</b>를 누르거나 <i>Settings | Tools | JSP Jump</i>의 허용 Origin에 추가하세요.</td></tr>
+  <tr><td>"찾지 못했습니다"</td><td>토스트에 보낸 단서(id·name·문구)가 나옵니다. JSP 안에 그 값이 그대로 없으면(스크립트로 만든 요소 등) 찾을 수 없습니다.
+    가까운 다른 요소나 감싸는 영역을 클릭해 보세요. 프로젝트가 IntelliJ에 열려 있어야 합니다.</td></tr>
+  <tr><td>IntelliJ 창이 앞으로 오지 않고 작업표시줄에서 깜빡이기만 함</td><td>Windows가 다른 프로그램의 창 전환을 막는 경우입니다. 파일은 이미 열려 있으니 작업표시줄의 IntelliJ를 누르세요.
+    원하지 않으면 <i>Settings | Tools | JSP Jump</i>에서 "Bring the IDE window to front"를 끄세요.</td></tr>
+  <tr><td>북마크를 눌러도 아무 반응이 없음</td><td>페이지가 <code>https</code>이거나 보안 정책(CSP)으로 외부 스크립트를 막는 사이트일 수 있습니다. 로컬 개발 서버(<code>http://localhost</code>)에서 사용하세요.</td></tr>
+  <tr><td>JetBrains IDE를 여러 개 켜 둠</td><td>북마클릿이 각 IDE에 물어보고 이 화면의 JSP를 가진 IDE에서 엽니다. 마지막으로 성공한 IDE는 기억해 두었다가 먼저 시도합니다.</td></tr>
+</table>
+<table data-lang="en">
+  <tr><th style="width:34%">Symptom</th><th>Fix</th></tr>
+  <tr><td>"IntelliJ를 찾을 수 없습니다" (IDE not found)</td><td>Make sure IntelliJ is running and JSP Jump is installed and enabled in <i>Settings | Plugins</i>.
+    If you changed the IDE port (<i>Settings | Build, Execution, Deployment | Debugger | Built-in server port</i>), keep it within 63342–63361. Port of this IDE: <b>{{PORT}}</b></td></tr>
+  <tr><td>"Origin not allowed"</td><td>The page is served from a LAN IP or host name (e.g. <code>http://192.168.0.10:8080</code>).
+    Click <b>Allow</b> in the IntelliJ notification or add it to the allowed origins in <i>Settings | Tools | JSP Jump</i>.</td></tr>
+  <tr><td>"찾지 못했습니다" (not found)</td><td>The toast lists the clues that were sent (id, name, text). Elements created by scripts have no literal match in the JSP.
+    Try a nearby element or its container. The project must be open in IntelliJ.</td></tr>
+  <tr><td>The IntelliJ window only flashes in the taskbar</td><td>Windows focus-stealing protection. The file is already open; click IntelliJ in the taskbar.
+    You can turn off "Bring the IDE window to front" in <i>Settings | Tools | JSP Jump</i>.</td></tr>
+  <tr><td>Nothing happens when clicking the bookmark</td><td>The page may be <code>https</code> or block external scripts with a Content Security Policy. Use it on your local dev server (<code>http://localhost</code>).</td></tr>
+  <tr><td>Several JetBrains IDEs are running</td><td>The bookmarklet asks each IDE and opens the JSP in the one that has it. The last successful IDE is remembered and tried first.</td></tr>
+</table>
+
+<script>
+(function () {
+  var KEY = 'jspjump.lang';
+  function setLang(l) {
+    document.documentElement.lang = l;
+    var bs = document.querySelectorAll('.langs button');
+    for (var i = 0; i < bs.length; i++) { bs[i].className = bs[i].getAttribute('data-set') === l ? 'on' : ''; }
+    try { localStorage.setItem(KEY, l); } catch (e) { /* ignore */ }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
+  setLang(saved || (/^ko\b/i.test(navigator.language || '') ? 'ko' : 'en'));
+  var bs = document.querySelectorAll('.langs button');
+  for (var i = 0; i < bs.length; i++) { bs[i].onclick = function () { setLang(this.getAttribute('data-set')); }; }
+
+  document.getElementById('bm').onclick = function () {
+    alert(document.documentElement.lang === 'ko' ? '이 버튼은 클릭하지 말고 북마크바로 끌어다 놓으세요.'
+      : 'Do not click this button - drag it onto the bookmarks bar.');
+    return false;
+  };
+
+  document.getElementById('pingBtn').onclick = function () {
+    var ko = document.documentElement.lang === 'ko';
+    var out = document.getElementById('pingResult');
+    out.className = ''; out.textContent = ko ? '확인 중...' : 'Checking...';
+    fetch('/jspjump/ping').then(function (r) { return r.json(); }).then(function (r) {
+      out.className = 'ok';
+      out.textContent = (ko ? '연결됨 - ' : 'Connected - ') + r.ide + ', JSP Jump ' + r.version +
+        (r.projects ? (ko ? ', 열린 프로젝트: ' : ', open projects: ') + r.projects.join(', ') : '') +
+        (r.enabled ? '' : (ko ? ' (설정에서 꺼져 있음)' : ' (disabled in settings)'));
+    }).catch(function (e) { out.className = 'err'; out.textContent = (ko ? '실패: ' : 'Failed: ') + e; });
+  };
+})();
+</script>
+</body>
+</html>

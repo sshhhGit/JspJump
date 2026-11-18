@@ -1,0 +1,99 @@
+<idea-plugin>
+    <id>com.sshhhdev.jspjump</id>
+    <name>JSP Jump</name>
+    <vendor url="https://github.com/sshhhGit/JspJump">sshhhdev</vendor>
+
+    <description><![CDATA[
+    <p>Click a button, input or grid column on a page served by your <b>local</b> server (Tomcat etc.) in the
+    browser and the IDE opens the <b>JSP line that defines it</b> &mdash; like the browser's
+    <i>Inspect element</i> picker, but it jumps to your source code.</p>
+
+    <h3>Getting started</h3>
+    <ol>
+      <li>When JSP Jump is installed, the bookmark page (<code>http://localhost:63342/jspjump/install</code>) opens in
+      your browser together with an IDE notification. You can open the page again with
+      <i>Tools | JSP Jump: Add Browser Bookmark...</i>.</li>
+      <li>Show the bookmarks bar (<kbd>Ctrl+Shift+B</kbd>) and drag the <b>JSP Jump</b> button onto it. This is needed
+      once per browser: a page can only be inspected by a script running in it.</li>
+      <li>Open your page on the local server, click the bookmark, then click an element.</li>
+    </ol>
+
+    <h3>How it works</h3>
+    <ol>
+      <li>On your local page, click the bookmarklet: <b>jump mode</b> turns on and the element under the mouse is
+      highlighted (<kbd>Esc</kbd> cancels).</li>
+      <li>Click once: the bookmarklet sends the element's clues (id, name, text, AUIGrid dataField, page URL) to the
+      IDE's built-in server (<code>http://localhost:63342/jspjump</code>) and jump mode turns off. The click does not
+      reach the page. When several JetBrains IDEs run, the built-in server port differs (63343, ...): the bookmarklet
+      finds the right IDE on ports 63342&ndash;63361 automatically.</li>
+      <li>The IDE searches the project's JSP files and opens the matching line. If there are several candidates,
+      a popup lets you choose. The result is shown as a toast in the browser.</li>
+    </ol>
+
+    <h3>Matching</h3>
+    <ul>
+      <li><code>id</code> attributes, including EL prefixes such as <code>id=${prefix}field</code></li>
+      <li><code>name</code> attributes</li>
+      <li>AUIGrid columns: <code>.addColumnCustom("dataField", ...)</code> and <code>dataField: "..."</code>
+      (function names are configurable)</li>
+      <li>Button / label text, then the nearest ancestor with an id</li>
+      <li>JSP files named after the page URL or the screen root element are searched first, then the scripts they
+      load with <code>&lt;script src&gt;</code> (grid columns defined in JS), then other JSPs and project scripts</li>
+    </ul>
+
+    <h3>Security</h3>
+    <p>Everything stays on your machine. Requests are accepted only from the page origins configured in
+    <i>Settings | Tools | JSP Jump</i> (default: <code>localhost</code> / <code>127.0.0.1</code>, any port).
+    A page served from a LAN address or dev host name triggers an IDE notification with an <b>Allow</b> button.</p>
+
+    <hr/>
+
+    <p><b>한국어</b></p>
+    <p>JSP Jump를 설치하면 북마크 추가 페이지가 브라우저에 자동으로 열리고 IDE에 안내 알림이 뜹니다.
+    (다시 열기: <i>Tools | JSP Jump: Add Browser Bookmark...</i>) 그 페이지에서
+    북마크 버튼을 크롬 북마크바로 끌어다 놓으세요(브라우저당 한 번). IDE 포트(63342~63361)는 자동으로 찾습니다.</p>
+    <p>로컬 서버로 띄운 화면에서 북마클릿으로 <b>점프 모드</b>를 켜고 버튼·입력칸·AUIGrid 컬럼을 한 번 클릭하면,
+    IDE가 그 요소를 정의한 JSP 파일의 해당 줄을 엽니다. 후보가 여러 개면 IDE에서 목록으로 고를 수 있고,
+    결과는 브라우저에 토스트로 표시됩니다. 허용 Origin·검색 경로·그리드 컬럼 함수명은
+    <i>Settings | Tools | JSP Jump</i>에서 바꿀 수 있습니다.</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.0.0</h3>
+    <ul>
+      <li>Initial release: bookmarklet jump mode → open the JSP line in the IDE</li>
+      <li>Matching by id (with EL prefix), name, AUIGrid dataField / header text, element text and ancestor id</li>
+      <li>Candidate popup when several locations match</li>
+      <li>Settings: allowed origins, search globs, grid column function names</li>
+      <li>Setup: bookmark page and notification when the plugin is installed; page in Korean / English with connection test and troubleshooting; Tools menu entry</li>
+      <li>Automatic IDE port detection (63342&ndash;63361) and best-IDE selection when several IDEs run</li>
+    </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <httpRequestHandler implementation="com.sshhhdev.jspjump.JspJumpHttpHandler"/>
+        <applicationService serviceImplementation="com.sshhhdev.jspjump.JspJumpSettings"/>
+        <applicationConfigurable parentId="tools" id="com.sshhhdev.jspjump.settings"
+                                 displayName="JSP Jump"
+                                 instance="com.sshhhdev.jspjump.JspJumpConfigurable"/>
+        <notificationGroup id="JSP Jump" displayType="BALLOON"/>
+        <!-- bookmark guide shown when JSP Jump is installed; stays until closed or until the bookmark is used -->
+        <notificationGroup id="JSP Jump Setup" displayType="STICKY_BALLOON"/>
+        <postStartupActivity implementation="com.sshhhdev.jspjump.JspJumpOnboarding"/>
+    </extensions>
+
+    <applicationListeners>
+        <listener class="com.sshhhdev.jspjump.JspJumpOnboarding" topic="com.intellij.ide.plugins.DynamicPluginListener"/>
+    </applicationListeners>
+
+    <actions>
+        <action id="com.sshhhdev.jspjump.OpenInstallPage"
+                class="com.sshhhdev.jspjump.OpenInstallPageAction"
+                text="JSP Jump: Add Browser Bookmark..."
+                description="Open the page that adds the JSP Jump bookmarklet to your browser">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

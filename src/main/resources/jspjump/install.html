@@ -92,7 +92,7 @@ the page can intercept your click; the IDE plugin alone cannot touch the browser
     IntelliJ 오른쪽 아래 알림의 <b>Allow</b>를 누르거나 <i>Settings | Tools | JSP Jump</i>의 허용 Origin에 추가하세요.</td></tr>
   <tr><td>"찾지 못했습니다"</td><td>토스트에 보낸 단서(id·name·문구)가 나옵니다. JSP 안에 그 값이 그대로 없으면(스크립트로 만든 요소 등) 찾을 수 없습니다.
     가까운 다른 요소나 감싸는 영역을 클릭해 보세요. 프로젝트가 IntelliJ에 열려 있어야 합니다.</td></tr>
-  <tr><td>IntelliJ 창이 앞으로 오지 않고 작업표시줄에서 깜빡이기만 함</td><td>Windows가 다른 프로그램의 창 전환을 막는 경우입니다. 파일은 이미 열려 있으니 작업표시줄의 IntelliJ를 누르세요.
+  <tr><td>IntelliJ 창이 앞으로 오지 않고 작업표시줄에서 깜빡이기만 함</td><td>Windows가 다른 프로그램의 창 전환을 막는 경우입니다. JSP Jump가 자동으로 우회를 시도하지만, 그래도 안 되면 파일은 이미 열려 있으니 작업표시줄의 IntelliJ를 누르세요.
     원하지 않으면 <i>Settings | Tools | JSP Jump</i>에서 "Bring the IDE window to front"를 끄세요.</td></tr>
   <tr><td>북마크를 눌러도 아무 반응이 없음</td><td>페이지가 <code>https</code>이거나 보안 정책(CSP)으로 외부 스크립트를 막는 사이트일 수 있습니다. 로컬 개발 서버(<code>http://localhost</code>)에서 사용하세요.</td></tr>
   <tr><td>JetBrains IDE를 여러 개 켜 둠</td><td>북마클릿이 각 IDE에 물어보고 이 화면의 JSP를 가진 IDE에서 엽니다. 마지막으로 성공한 IDE는 기억해 두었다가 먼저 시도합니다.</td></tr>
@@ -105,7 +105,7 @@ the page can intercept your click; the IDE plugin alone cannot touch the browser
     Click <b>Allow</b> in the IntelliJ notification or add it to the allowed origins in <i>Settings | Tools | JSP Jump</i>.</td></tr>
   <tr><td>"찾지 못했습니다" (not found)</td><td>The toast lists the clues that were sent (id, name, text). Elements created by scripts have no literal match in the JSP.
     Try a nearby element or its container. The project must be open in IntelliJ.</td></tr>
-  <tr><td>The IntelliJ window only flashes in the taskbar</td><td>Windows focus-stealing protection. The file is already open; click IntelliJ in the taskbar.
+  <tr><td>The IntelliJ window only flashes in the taskbar</td><td>Windows focus-stealing protection. JSP Jump works around it automatically; if it still only flashes, the file is already open, so click IntelliJ in the taskbar.
     You can turn off "Bring the IDE window to front" in <i>Settings | Tools | JSP Jump</i>.</td></tr>
   <tr><td>Nothing happens when clicking the bookmark</td><td>The page may be <code>https</code> or block external scripts with a Content Security Policy. Use it on your local dev server (<code>http://localhost</code>).</td></tr>
   <tr><td>Several JetBrains IDEs are running</td><td>The bookmarklet asks each IDE and opens the JSP in the one that has it. The last successful IDE is remembered and tried first.</td></tr>

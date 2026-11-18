@@ -220,7 +220,11 @@ public final class JspJumpHttpHandler extends HttpRequestHandler {
         out.put("line", cands.get(0).get("line"));
         out.put("score", best.matches().get(0).score());
         out.put("candidates", cands);
-        if (!req.dryRun) JspNavigator.show(bestProject, best.matches(), best.strategy());
+        if (!req.dryRun) {
+            WindowRaiser.Mode mode = WindowRaiser.parse(req.raise,
+                    WindowRaiser.parse(settings.getState().raiseMode, WindowRaiser.Mode.NUDGE));
+            JspNavigator.show(bestProject, best.matches(), best.strategy(), mode);
+        }
         return sendJson(out, request, context, headers);
     }
 

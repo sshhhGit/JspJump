@@ -47,6 +47,8 @@ public final class JspJumpSettings implements PersistentStateComponent<JspJumpSe
         public String excludeGlobs = DEFAULT_EXCLUDES;
         public String columnFunctions = DEFAULT_COLUMN_FUNCTIONS;
         public boolean bringIdeToFront = true;
+        /** WindowRaiser.Mode used on Windows to get past the foreground lock. */
+        public String raiseMode = "NUDGE";
         /** Plugin jar path + modification time of the last installation (to show the bookmark guide on install only). */
         public String installMarker = "";
         public String installedVersion = "";

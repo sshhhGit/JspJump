@@ -1,6 +1,5 @@
 package com.sshhhdev.jspjump;
 
-import com.intellij.ide.impl.ProjectUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
@@ -20,12 +19,13 @@ final class JspNavigator {
     private JspNavigator() {
     }
 
-    static void show(@NotNull Project project, @NotNull List<JspLocator.Match> matches, String strategy) {
+    static void show(@NotNull Project project, @NotNull List<JspLocator.Match> matches, String strategy,
+                     @NotNull WindowRaiser.Mode raise) {
         if (matches.isEmpty()) return;
         boolean toFront = JspJumpSettings.getInstance().getState().bringIdeToFront;
         ApplicationManager.getApplication().invokeLater(() -> {
             if (project.isDisposed()) return;
-            if (toFront) ProjectUtil.focusProjectWindow(project, true);
+            if (toFront) WindowRaiser.raise(project, raise);
             if (matches.size() == 1) {
                 open(project, matches.get(0));
                 return;

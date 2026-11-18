@@ -16,6 +16,8 @@ public final class JumpRequest {
     public String project;
     /** Search only, do not open anything (used to pick the right IDE when several are running). */
     public boolean dryRun;
+    /** Diagnostics: override how the IDE window is raised (NUDGE, ALT, PLAIN). */
+    public String raise;
 
     public static final class Page {
         public String url;

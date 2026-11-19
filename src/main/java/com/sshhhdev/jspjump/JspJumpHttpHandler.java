@@ -180,6 +180,7 @@ public final class JspJumpHttpHandler extends HttpRequestHandler {
                 t.put("collectMs", locator.collectMs);
                 t.put("searchMs", locator.searchMs);
                 t.put("files", locator.fileCount);
+                if (locator.screenInfo != null) t.put("screen", locator.screenInfo);
                 timing.add(t);
             } catch (RuntimeException e) {
                 LOG.warn("JSP Jump search failed in " + p.getName(), e);

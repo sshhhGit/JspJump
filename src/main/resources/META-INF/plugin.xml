@@ -22,7 +22,7 @@
     <ol>
       <li>On your local page, click the bookmarklet: <b>jump mode</b> turns on and the element under the mouse is
       highlighted (<kbd>Esc</kbd> cancels).</li>
-      <li>Click once: the bookmarklet sends the element's clues (id, name, text, AUIGrid dataField, page URL) to the
+      <li>Click once: the bookmarklet sends the element's clues (id, name, text, grid column, page URL) to the
       IDE's built-in server (<code>http://localhost:63342/jspjump</code>) and jump mode turns off. The click does not
       reach the page. When several JetBrains IDEs run, the built-in server port differs (63343, ...): the bookmarklet
       finds the right IDE on ports 63342&ndash;63361 automatically.</li>
@@ -30,13 +30,20 @@
       a popup lets you choose. The result is shown as a toast in the browser.</li>
     </ol>
 
-    <h3>Matching</h3>
+    <h3>Works with any Java + JSP web project</h3>
     <ul>
-      <li><code>id</code> attributes, including EL prefixes such as <code>id=${prefix}field</code></li>
-      <li><code>name</code> attributes</li>
-      <li>AUIGrid columns: <code>.addColumnCustom("dataField", ...)</code> and <code>dataField: "..."</code>
-      (function names are configurable)</li>
-      <li>Button / label text, then the nearest ancestor with an id</li>
+      <li>The page URL is resolved to its JSP: Spring MVC controllers (<code>@RequestMapping</code>,
+      <code>@GetMapping</code> ... &rarr; <code>return "board/list"</code>, <code>ModelAndView</code>), Tiles definitions
+      (wildcards included), Struts 1/2 action XML, direct <code>*.jsp</code> URLs</li>
+      <li>Grid columns: AUIGrid, jqGrid, DataTables, AG Grid, Toast UI Grid, Tabulator, Kendo, SlickGrid, ARIA grids and
+      plain tables &rarr; column definitions such as <code>field:</code>, <code>dataField:</code>, <code>name:</code>,
+      <code>data:</code>, <code>headerName:</code>, <code>title:</code></li>
+      <li><code>id</code> (including EL prefixes such as <code>id=${prefix}field</code> and Spring
+      <code>&lt;form:input path&gt;</code>), <code>name</code>, Struts <code>property</code></li>
+      <li>Button / label text, and internationalized text through <code>messages*.properties</code> keys
+      (<code>&lt;spring:message code&gt;</code>, <code>&lt;fmt:message key&gt;</code>)</li>
+      <li>Then the nearest ancestor with an id</li>
+      <li>Text based (no PSI): works in IntelliJ IDEA Community and Ultimate</li>
       <li>With several open projects, the project that serves the page wins: for a Tomcat run configuration the page
       port is mapped to its deployed <code>docBase</code> and the project containing it</li>
       <li>JSP files named after the page URL or the screen root element are searched first, then the scripts they
@@ -54,7 +61,7 @@
     <p>JSP Jump를 설치하면 북마크 추가 페이지가 브라우저에 자동으로 열리고 IDE에 안내 알림이 뜹니다.
     (다시 열기: <i>Tools | JSP Jump: Add Browser Bookmark...</i>) 그 페이지에서
     북마크 버튼을 크롬 북마크바로 끌어다 놓으세요(브라우저당 한 번). IDE 포트(63342~63361)는 자동으로 찾습니다.</p>
-    <p>로컬 서버로 띄운 화면에서 북마클릿으로 <b>점프 모드</b>를 켜고 버튼·입력칸·AUIGrid 컬럼을 한 번 클릭하면,
+    <p>로컬 서버로 띄운 화면에서 북마클릿으로 <b>점프 모드</b>를 켜고 버튼·입력칸·그리드 컬럼을 한 번 클릭하면,
     IDE가 그 요소를 정의한 JSP 파일의 해당 줄을 엽니다. 후보가 여러 개면 IDE에서 목록으로 고를 수 있고,
     결과는 브라우저에 토스트로 표시됩니다. 허용 Origin·검색 경로·그리드 컬럼 함수명은
     <i>Settings | Tools | JSP Jump</i>에서 바꿀 수 있습니다.</p>
@@ -64,11 +71,13 @@
     <h3>1.0.0</h3>
     <ul>
       <li>Initial release: bookmarklet jump mode → open the JSP line in the IDE</li>
-      <li>Matching by id (with EL prefix), name, AUIGrid dataField / header text, element text and ancestor id</li>
+      <li>Matching by id (with EL prefix), name, grid columns (AUIGrid, jqGrid, DataTables, AG Grid, Toast UI ...), element text and ancestor id</li>
       <li>Candidate popup when several locations match</li>
       <li>Settings: allowed origins, search globs, grid column function names</li>
       <li>Setup: bookmark page and notification when the plugin is installed; page in Korean / English with connection test and troubleshooting; Tools menu entry</li>
       <li>Automatic IDE port detection (63342&ndash;63361) and best-IDE selection when several IDEs run</li>
+      <li>Any Java web project: Spring MVC controller / Tiles / Struts resolution, common grids, form tags, message keys</li>
+      <li>Browser messages in Korean or English (browser language)</li>
     </ul>
     ]]></change-notes>
 

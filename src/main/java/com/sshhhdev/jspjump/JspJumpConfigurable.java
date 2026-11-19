@@ -59,9 +59,9 @@ public final class JspJumpConfigurable implements Configurable {
                 .addLabeledComponent("Script files searched after the JSPs (glob; scripts loaded by the screen JSP come first):",
                         new JBScrollPane(scripts), true)
                 .addLabeledComponent("Excluded paths (glob):", new JBScrollPane(excludes), true)
-                .addLabeledComponent("Grid column functions (comma separated):", columnFunctions, true)
-                .addComponent(hint("Column functions are matched as  .fn(\"dataField\", \"header\" ...)  "
-                        + "and  dataField: \"...\"  is always searched."))
+                .addLabeledComponent("Grid column helper functions (optional, comma separated):", columnFunctions, true)
+                .addComponent(hint("For projects that build columns with  .fn(\"key\", \"header\" ...).  Column definitions such as  "
+                        + "field: / dataField: / name: / data: / headerName: / title:  are always searched."))
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         reset();

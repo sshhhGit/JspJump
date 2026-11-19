@@ -36,8 +36,11 @@ public final class JumpRequest {
     }
 
     public static final class Grid {
-        /** DOM id of the AUIGrid container div (without '#'). */
+        /** DOM id of the nearest element with an id around the grid (without '#'). */
         public String gridId;
+        /** Which detector found it: AUIGrid, jqGrid, DataTables, col-id, data-field, SlickGrid, table ... */
+        public String kind;
+        /** Column key as written in the column definition (field / dataField / name / data ...). */
         public String dataField;
         public String headerText;
         /** "header" or "body". */

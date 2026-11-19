@@ -13,9 +13,44 @@
   var TOP = window;
   var Z = 2147483647;
 
+  var KO = /^ko\b/i.test((navigator.language || '') + '');
+  var M = KO ? {
+    cancel: '취소했습니다.',
+    banner: '소스로 이동할 요소를 클릭하세요 (Esc 취소)',
+    close: '클릭하면 닫힘',
+    noIde: 'IntelliJ를 찾을 수 없습니다',
+    noIde1: 'IntelliJ가 실행 중이고 JSP Jump 플러그인이 설치돼 있는지 확인하세요.',
+    noIde2: 'IDE의 Built-in server 포트를 바꿨다면 다음 범위로 두세요:',
+    error: '오류',
+    allow: 'IntelliJ 오른쪽 아래 알림에서 "Allow"를 누르면 이 주소도 허용됩니다.',
+    notFound: '찾지 못했습니다.',
+    clues: '단서',
+    tried: '시도',
+    candidates: function (n) { return '후보 ' + n + '개 - IDE에서 선택하세요'; },
+    first: '첫 후보',
+    sending: 'IDE로 전송 중...',
+    clueFail: '단서 수집 실패'
+  } : {
+    cancel: 'Cancelled.',
+    banner: 'Click an element to open its source (Esc to cancel)',
+    close: 'Click to close',
+    noIde: 'IntelliJ not found',
+    noIde1: 'Make sure IntelliJ is running and the JSP Jump plugin is installed.',
+    noIde2: 'If you changed the IDE built-in server port, keep it within',
+    error: 'Error',
+    allow: 'Click "Allow" in the IntelliJ notification to allow this address.',
+    notFound: 'Not found.',
+    clues: 'Clues',
+    tried: 'Tried',
+    candidates: function (n) { return n + ' candidates - choose in the IDE'; },
+    first: 'first',
+    sending: 'Sending to the IDE...',
+    clueFail: 'Could not read the element'
+  };
+
   if (TOP.__jspJump && TOP.__jspJump.active) {
     TOP.__jspJump.stop();
-    TOP.__jspJump.toast('JSP Jump: 취소했습니다.', 'info', 1500);
+    TOP.__jspJump.toast('JSP Jump: ' + M.cancel, 'info', 1500);
     return;
   }
 
@@ -62,7 +97,7 @@
   var banner = mk('div', 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:' + Z + ';' +
     'background:#2E6BD9;color:#fff;font:bold 13px/1.4 sans-serif;padding:6px 14px;border-radius:16px;' +
     'box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;',
-    'JSP Jump: 소스로 이동할 요소를 클릭하세요 (Esc 취소)');
+    'JSP Jump: ' + M.banner);
   document.body.appendChild(box);
   document.body.appendChild(tip);
   document.body.appendChild(banner);
@@ -75,7 +110,7 @@
       'font:13px/1.5 sans-serif;padding:10px 14px;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.35);' +
       'max-width:480px;white-space:pre-wrap;word-break:break-all;cursor:pointer;', msg);
     t.id = '__jspjump_toast';
-    t.title = '클릭하면 닫힘';
+    t.title = M.close;
     t.onclick = function () { if (t.parentNode) { t.parentNode.removeChild(t); } };
     document.body.appendChild(t);
     setTimeout(t.onclick, ms || 4000);
@@ -144,12 +179,43 @@
     return el;
   }
 
-  function gridApi(el) {
-    try { return el.ownerDocument.defaultView.AUIGrid || null; } catch (e) { return null; }
+  /*
+   * Grid columns. The goal is the column key (field) as written in the column definition, plus the header text.
+   * Tried in order: AUIGrid API, jqGrid, DataTables API, column-key attributes used by many grids
+   * (AG Grid col-id, Toast UI data-column-name, Tabulator tabulator-field, Kendo data-field, ...),
+   * SlickGrid header by column index, ARIA grids and plain <thead> tables (header text by position).
+   */
+  var COL_ATTRS = ['col-id', 'data-column-name', 'tabulator-field', 'data-field', 'data-column', 'data-colid',
+    'data-col-id', 'data-key', 'data-dataindex', 'data-columnid'];
+  var HEADER_SEL = 'thead, [role="columnheader"], [class*="header"], [class*="Header"]';
+
+  function winOf(el) {
+    try { return el.ownerDocument.defaultView; } catch (e) { return null; }
   }
 
-  function gridInfo(el, cx, cy) {
-    var api = gridApi(el);
+  function textOf(el) {
+    var t = el ? norm(el.innerText || el.textContent || '') : '';
+    return t.length > 60 ? '' : t;
+  }
+
+  function nearestId(el) {
+    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+      if (n.id && !isOurs(n)) { return n.id; }
+    }
+    return null;
+  }
+
+  function isHeader(el) {
+    return !!(el.closest && el.closest(HEADER_SEL));
+  }
+
+  function cssEsc(v) {
+    try { return (window.CSS && CSS.escape) ? CSS.escape(v) : v.replace(/["\\]/g, '\\$&'); } catch (e) { return v; }
+  }
+
+  function auiGridInfo(el, cx) {
+    var api = null;
+    try { api = winOf(el).AUIGrid || null; } catch (e) { api = null; }
     if (!api || !api.isCreated) { return null; }
     var n = el, container = null, pid = null;
     for (; n && n.nodeType === 1; n = n.parentElement) {
@@ -158,7 +224,7 @@
       }
     }
     if (!container) { return null; }
-    var info = { gridId: container.id, part: (el.closest && el.closest('.aui-grid-header-panel')) ? 'header' : 'body' };
+    var info = { gridId: container.id, kind: 'AUIGrid', part: (el.closest && el.closest('.aui-grid-header-panel')) ? 'header' : 'body' };
     var cols = [];
     try { cols = api.getColumnInfoList(pid) || []; } catch (e) { cols = []; }
     var byHeader = {};
@@ -183,7 +249,6 @@
       if (fields.length === 1) {
         info.dataField = fields[0];
       } else {
-        /* same header text twice: pick by column order among visible header cells with that text */
         var same = [];
         for (var k = 0; k < cells.length; k++) {
           if (norm(cells[k].innerText || cells[k].textContent || '') === best.text &&
@@ -196,6 +261,114 @@
       info.headerText = ownText(el);
     }
     return info;
+  }
+
+  /* jqGrid: body cells aria-describedby="<gridId>_<colName>", header th id="<gridId>_<colName>" */
+  function jqGridInfo(el) {
+    var cell = el.closest && el.closest('td[aria-describedby], th[id]');
+    if (!cell) { return null; }
+    var key = cell.getAttribute('aria-describedby') || cell.id;
+    var view = cell.closest('[id^="gview_"]');
+    var gid = view ? view.id.substring(6) : (cell.closest('table') || {}).id;
+    if (!gid || key.indexOf(gid + '_') !== 0) { return null; }
+    var field = key.substring(gid.length + 1);
+    var head = (view || document).querySelector('th[id="' + cssEsc(gid + '_' + field) + '"]');
+    return { gridId: gid, kind: 'jqGrid', dataField: field, headerText: textOf(head), part: cell.tagName === 'TH' ? 'header' : 'body' };
+  }
+
+  /* DataTables (jQuery API): column data source and title */
+  function dataTablesInfo(el) {
+    var w = winOf(el), $ = w && w.jQuery;
+    if (!$ || !$.fn || !$.fn.dataTable || !$.fn.dataTable.isDataTable) { return null; }
+    var cell = el.closest && el.closest('td, th');
+    var table = cell && cell.closest('table');
+    if (!table) { return null; }
+    var wrap = table.closest('.dataTables_wrapper, .dt-container');
+    var real = wrap ? (wrap.querySelector('table.dataTable[id]') || table) : table;
+    try {
+      if (!$.fn.dataTable.isDataTable(real)) { return null; }
+      var dt = $(real).DataTable();
+      var idx = dt.column(cell).index();
+      if (idx === undefined || idx === null) { idx = cell.cellIndex; }
+      var col = dt.settings()[0].aoColumns[idx] || {};
+      var data = typeof col.mData === 'string' ? col.mData : (typeof col.data === 'string' ? col.data : null);
+      return { gridId: real.id || nearestId(real), kind: 'DataTables', dataField: data,
+        headerText: norm(stripTags(col.sTitle || '')) || textOf(dt.column(idx).header()), part: isHeader(cell) ? 'header' : 'body' };
+    } catch (e) { return null; }
+  }
+
+  /* grids that put the column key on cells / headers */
+  function attrGridInfo(el) {
+    for (var n = el, d = 0; n && n.nodeType === 1 && d < 8; n = n.parentElement, d++) {
+      for (var i = 0; i < COL_ATTRS.length; i++) {
+        var v = n.getAttribute(COL_ATTRS[i]);
+        if (!v || /^\d+$/.test(v)) { continue; }
+        var sel = '[' + COL_ATTRS[i] + '="' + cssEsc(v) + '"]';
+        var root = n.closest('[class*="grid"], [class*="Grid"], [class*="table"], table, [role="grid"], [role="treegrid"]');
+        /* the header row may live in another branch (AG Grid): climb until a header with the same key is found */
+        var header = '';
+        for (var up = n.parentElement, lv = 0; up && lv < 10 && !header; up = up.parentElement, lv++) {
+          var heads = up.querySelectorAll(sel);
+          for (var k = 0; k < heads.length && !header; k++) {
+            if (heads[k] !== n && isHeader(heads[k])) { header = textOf(heads[k]); root = root || up; }
+          }
+        }
+        if (!header && isHeader(n)) { header = textOf(n); }
+        root = root || n.parentElement;
+        return { gridId: nearestId(root), kind: COL_ATTRS[i], dataField: v, headerText: header || null, part: isHeader(n) ? 'header' : 'body' };
+      }
+    }
+    return null;
+  }
+
+  /* SlickGrid: cells have class l<N>; headers are .slick-header-column in order */
+  function slickGridInfo(el) {
+    var cell = el.closest && el.closest('.slick-cell, .slick-header-column');
+    if (!cell) { return null; }
+    var root = cell.closest('.slickgrid-container, [class*="slickgrid_"]') || cell.parentElement;
+    var heads = root ? root.querySelectorAll('.slick-header-column') : [];
+    var idx = -1;
+    if (cell.classList.contains('slick-header-column')) { idx = Array.prototype.indexOf.call(heads, cell); }
+    else { var m = /\bl(\d+)\b/.exec(cell.className); idx = m ? +m[1] : -1; }
+    var head = idx >= 0 ? heads[idx] : null;
+    return head ? { gridId: nearestId(root), kind: 'SlickGrid', headerText: textOf(head), part: isHeader(cell) ? 'header' : 'body' } : null;
+  }
+
+  /* ARIA grids and plain data tables with <thead>: header text of the column under the click */
+  function headerByPosition(el, cx) {
+    var cell = el.closest && el.closest('td, th, [role="gridcell"], [role="cell"], [role="columnheader"]');
+    if (!cell || cell.querySelector('input, select, textarea, button')) { return null; }
+    var heads = [];
+    var aria = cell.getAttribute('aria-colindex');
+    var grid = cell.closest('[role="grid"], [role="treegrid"], [role="table"]');
+    if (aria && grid) {
+      heads = grid.querySelectorAll('[role="columnheader"][aria-colindex="' + cssEsc(aria) + '"]');
+    } else {
+      var table = cell.closest('table');
+      if (!table || !table.tHead || !table.tHead.rows.length) { return null; }
+      var row = table.tHead.rows[table.tHead.rows.length - 1];
+      for (var i = 0; i < row.cells.length; i++) {
+        var r = row.cells[i].getBoundingClientRect();
+        if (r.width > 0 && cx >= r.left && cx <= r.right) { heads = [row.cells[i]]; break; }
+      }
+      grid = table;
+    }
+    var h = heads.length ? textOf(heads[0]) : '';
+    return h ? { gridId: nearestId(grid), kind: 'table', headerText: h, part: isHeader(cell) ? 'header' : 'body' } : null;
+  }
+
+  function gridInfo(el, cx, cy) {
+    var fns = [auiGridInfo, jqGridInfo, dataTablesInfo, attrGridInfo, slickGridInfo, headerByPosition];
+    for (var i = 0; i < fns.length; i++) {
+      var g = null;
+      try { g = fns[i](el, cx, cy); } catch (e) { g = null; }
+      if (g && (g.dataField || g.headerText)) { return g; }
+    }
+    return null;
+  }
+
+  function inGrid(el) {
+    return !!(el && el.closest && el.closest('table, [role="grid"], [role="treegrid"], [class*="grid"], [class*="Grid"]'));
   }
 
   function ancestorsOf(el) {
@@ -243,8 +416,8 @@
   function describe(p) {
     var t = p.target, s = [];
     if (p.grid) {
-      s.push('grid=' + p.grid.gridId);
-      if (p.grid.dataField) { s.push('dataField=' + p.grid.dataField); }
+      s.push((p.grid.kind || 'grid') + (p.grid.gridId ? '=' + p.grid.gridId : ''));
+      if (p.grid.dataField) { s.push('column=' + p.grid.dataField); }
       if (p.grid.headerText) { s.push('header="' + p.grid.headerText + '"'); }
     }
     if (t.id) { s.push('id=' + t.id); }
@@ -343,26 +516,24 @@
 
   function report(p, r) {
     if (!r) {
-      toast('JSP Jump: IntelliJ를 찾을 수 없습니다 (localhost:' + FIRST_PORT + '~' + LAST_PORT + ').' +
-        '\n- IntelliJ가 실행 중이고 JSP Jump 플러그인이 설치돼 있는지 확인하세요.' +
-        '\n- IDE의 Built-in server 포트를 바꿨다면 ' + FIRST_PORT + '~' + LAST_PORT + ' 사이로 두세요.', 'error', 9000);
+      toast('JSP Jump: ' + M.noIde + ' (localhost:' + FIRST_PORT + '-' + LAST_PORT + ').' +
+        '\n- ' + M.noIde1 + '\n- ' + M.noIde2 + ' ' + FIRST_PORT + '-' + LAST_PORT, 'error', 9000);
       return;
     }
     if (!r.ok) {
-      toast('JSP Jump: ' + (r.error || '오류') +
-        (r.originRejected ? '\nIntelliJ 오른쪽 아래 알림에서 "Allow"를 누르면 이 주소도 허용됩니다.' : ''), 'error', 9000);
+      toast('JSP Jump: ' + (r.error || M.error) + (r.originRejected ? '\n' + M.allow : ''), 'error', 9000);
       return;
     }
     if (!r.found) {
-      toast('JSP Jump: 찾지 못했습니다.\n단서: ' + describe(p) +
-        (r.tried && r.tried.length ? '\n시도: ' + r.tried.join(' / ') : ''), 'warn', 8000);
+      toast('JSP Jump: ' + M.notFound + '\n' + M.clues + ': ' + describe(p) +
+        (r.tried && r.tried.length ? '\n' + M.tried + ': ' + r.tried.join(' / ') : ''), 'warn', 8000);
       return;
     }
     var name = String(r.file).split('/').pop();
     if (r.found === 1) {
       toast('JSP Jump: ' + name + ':' + r.line + '\n(' + r.strategy + ' · ' + r.project + ')', 'ok', 3500);
     } else {
-      toast('JSP Jump: 후보 ' + r.found + '개 - IDE에서 선택하세요\n(' + r.strategy + ' · 첫 후보 ' + name + ':' +
+      toast('JSP Jump: ' + M.candidates(r.found) + '\n(' + r.strategy + ' · ' + M.first + ' ' + name + ':' +
         r.line + ')', 'info', 5000);
     }
   }
@@ -383,7 +554,7 @@
     var label = el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
       (el.getAttribute('name') ? ' [name=' + el.getAttribute('name') + ']' : '');
     var g = gridInfo(el, lastX, lastY);
-    if (g) { label = 'AUIGrid ' + g.gridId + (g.dataField ? ' · ' + g.dataField : '') + (g.headerText ? ' "' + g.headerText + '"' : ''); }
+    if (g) { label = (g.kind || 'grid') + (g.gridId ? ' ' + g.gridId : '') + (g.dataField ? ' · ' + g.dataField : '') + (g.headerText ? ' "' + g.headerText + '"' : ''); }
     tip.textContent = label;
     tip.style.left = Math.max(0, r.left + o.x) + 'px';
     tip.style.top = Math.max(0, r.top + o.y - 22) + 'px';
@@ -398,7 +569,7 @@
     var t = e.target;
     if (isOurs(t)) { return; }
     var r = resolve(t);
-    if (r !== current) { highlight(r); } else if (gridApi(t)) { highlight(r); }
+    if (r !== current) { highlight(r); } else if (inGrid(t)) { highlight(r); }
   }
 
   function block(e) {
@@ -413,9 +584,9 @@
     block(e);
     var raw = e.target;
     var p;
-    try { p = clues(raw, e.clientX, e.clientY); } catch (err) { stop(); toast('JSP Jump: 단서 수집 실패 - ' + err, 'error'); return; }
+    try { p = clues(raw, e.clientX, e.clientY); } catch (err) { stop(); toast('JSP Jump: ' + M.clueFail + ' - ' + err, 'error'); return; }
     stop();
-    toast('JSP Jump: IDE로 전송 중...\n' + describe(p), 'info', 15000);
+    toast('JSP Jump: ' + M.sending + '\n' + describe(p), 'info', 15000);
     send(p);
   }
 
@@ -423,7 +594,7 @@
     if (e.key === 'Escape' || e.keyCode === 27) {
       block(e);
       stop();
-      toast('JSP Jump: 취소했습니다.', 'info', 1500);
+      toast('JSP Jump: ' + M.cancel, 'info', 1500);
     }
   }
 

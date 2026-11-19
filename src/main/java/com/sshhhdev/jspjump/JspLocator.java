@@ -11,6 +11,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.psi.search.FilenameIndex;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.search.PsiSearchHelper;
+import com.intellij.psi.search.UsageSearchContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -137,38 +139,61 @@ public final class JspLocator {
         JumpRequest.Target t = req.target;
         JumpRequest.Grid g = req.grid;
 
-        // 1) AUIGrid column (before id: grid internals may carry generated ids)
+        String fns = columnFunctionAlternation(settings.columnFunctions);
+        // 1) grid column definition (before id: grid internals often carry generated ids)
         if (g != null && notBlank(g.dataField)) {
-            tried.add("dataField=" + g.dataField);
-            Result r = run("grid dataField", gridDataFieldSearcher(g.dataField, g.gridId, columnFunctionAlternation(settings.columnFunctions)), pools, tried);
+            tried.add("column=" + g.dataField);
+            Result r = run("grid column", gridDataFieldSearcher(g.dataField, g.gridId, fns), pools, tried);
             if (r != null) return r;
         }
         if (g != null && notBlank(g.headerText)) {
-            tried.add("headerText=" + g.headerText);
-            Result r = run("grid headerText", gridHeaderSearcher(g.headerText, g.gridId, columnFunctionAlternation(settings.columnFunctions)), pools, tried);
+            tried.add("header=" + g.headerText);
+            // keyed column definitions (headerName: "...") or a plain <th>...</th>
+            Result r = run("grid header", any(gridHeaderSearcher(g.headerText, g.gridId, fns),
+                    textSearcher(normalize(g.headerText))), pools, tried);
             if (r != null) return r;
         }
-        // 2) id
+        // 2) id (also Spring <form:input path="x"> which renders id="x")
         if (t != null && notBlank(t.id)) {
             tried.add("id=" + t.id);
-            Result r = run("id", attrSearcher("id", t.id), pools, tried);
+            Result r = run("id", any(attrSearcher("id", t.id), formTagSearcher(t.id)), pools, tried);
             if (r != null) return r;
         }
-        // 3) name
+        // 3) name (also Spring form path= / Struts html property=)
         if (t != null && notBlank(t.name)) {
             tried.add("name=" + t.name);
-            Result r = run("name", attrSearcher("name", t.name), pools, tried);
+            Result r = run("name", any(attrSearcher("name", t.name), formTagSearcher(t.name)), pools, tried);
             if (r != null) return r;
         }
         // 4) visible text / button value
+        List<String> texts = new ArrayList<>();
         if (t != null) {
             for (String text : new LinkedHashSet<>(listOf(t.value, t.text))) {
                 String norm = normalize(text);
                 if (norm.isEmpty() || norm.length() > 60) continue;
+                texts.add(norm);
                 tried.add("text=" + norm);
                 Result r = run("text", textSearcher(norm), pools, tried);
                 if (r != null) return r;
             }
+        }
+        if (g != null && notBlank(g.headerText)) texts.add(normalize(g.headerText));
+        // 5) i18n: text comes from messages*.properties, the page only has the key
+        for (String norm : texts) {
+            for (String key : messageKeys(norm)) {
+                tried.add("message key=" + key);
+                Result r = run("message key", MessageKeys.keySearcher(key), pools, tried);
+                if (r != null) return r;
+            }
+        }
+        // 6) grid column key / header as any quoted literal (columns built from arrays, colNames, etc.)
+        if (g != null && notBlank(g.dataField)) {
+            Result r = run("grid column (literal)", literalSearcher(g.dataField, g.gridId, 70), pools, tried);
+            if (r != null) return r;
+        }
+        if (g != null && notBlank(g.headerText)) {
+            Result r = run("grid header (literal)", literalSearcher(normalize(g.headerText), g.gridId, 68), pools, tried);
+            if (r != null) return r;
         }
         // 5) nearest ancestors with an id
         // (phase 2 only: in phase 1 an ancestor id in the screen file must not beat an exact id in an include)
@@ -321,8 +346,13 @@ public final class JspLocator {
         if (fns != null) {
             patterns.add(Pattern.compile("\\.\\s*(?:" + fns + ")\\s*\\(\\s*\\\\?[\"']" + q + "\\\\?[\"']"));
         }
-        patterns.add(Pattern.compile("\\bdataField\\s*:\\s*\\\\?[\"']" + q + "\\\\?[\"']"));
-        Searcher s = gridSearcher(patterns, new int[]{100, 95}, gridId, "grid column");
+        // column definitions of common grids: AUIGrid dataField, AG Grid field/colId, Toast UI/jqGrid name,
+        // DataTables data, Kendo/Tabulator field, ExtJS dataIndex, TanStack accessorKey, Wijmo binding, IBSheet SaveName
+        // JS object properties (field: 'x') and JSP column tags (<display:column property="x">,
+        // <kendo:grid-column field="x">); a plain HTML attribute such as <input name="x"> is not a column definition
+        patterns.add(Pattern.compile("\\b(?:" + COLUMN_KEYS + ")\\s*:\\s*\\\\?[\"']" + q + "\\\\?[\"']"
+                + "|<[\\w:.-]*[Cc]olumn\\b[^>]*?\\b(?:" + COLUMN_KEYS + ")\\s*=\\s*[\"']" + q + "[\"']"));
+        Searcher s = gridSearcher(patterns, new int[]{100, 98}, gridId, "grid column");
         return text -> text.contains(dataField) ? s.search(text) : List.of();
     }
 
@@ -333,10 +363,54 @@ public final class JspLocator {
             patterns.add(Pattern.compile("\\.\\s*(?:" + fns + ")\\s*\\(\\s*[\"'][^\"']*[\"']\\s*,\\s*[\"']" + WS + "*" + h
                     + WS + "*[\"']"));
         }
-        patterns.add(Pattern.compile("\\bheaderText\\s*:\\s*[\"']" + WS + "*" + h + WS + "*[\"']"));
+        patterns.add(Pattern.compile("\\b(?:" + HEADER_KEYS + ")\\s*:\\s*[\"']" + WS + "*" + h + WS + "*[\"']"
+                + "|<[\\w:.-]*[Cc]olumn\\b[^>]*?\\b(?:" + HEADER_KEYS + ")\\s*=\\s*[\"']" + WS + "*" + h + WS + "*[\"']"));
         Searcher s = gridSearcher(patterns, new int[]{85, 80}, gridId, "grid header");
         String first = firstWord(normalize(headerText));
         return text -> text.contains(first) ? s.search(text) : List.of();
+    }
+
+    static final String COLUMN_KEYS = "dataField|field|colId|name|data|dataIndex|index|key|accessorKey|accessor|binding"
+            + "|fieldName|SaveName|prop|property|column|columnName";
+    static final String HEADER_KEYS = "headerText|headerName|header|title|label|caption|displayName|text|Header"
+            + "|columnTitle|sTitle";
+
+    /** Any quoted occurrence of a value, e.g. jqGrid colNames arrays; weakest grid evidence. */
+    static Searcher literalSearcher(String value, String gridId, int score) {
+        Pattern p = Pattern.compile("\\\\?[\"']" + WS + "*" + wordsRegex(value) + WS + "*\\\\?[\"']");
+        String first = firstWord(value);
+        return text -> {
+            List<Hit> hits = new ArrayList<>();
+            if (!text.contains(first)) return hits;
+            Matcher m = p.matcher(text);
+            while (m.find()) {
+                int sc = score;
+                if (notBlank(gridId) && lineOf(text, m.start()).contains(gridId)) sc += 3;
+                hits.add(new Hit(m.start(), sc, "literal"));
+            }
+            return hits;
+        };
+    }
+
+    /** Spring {@code <form:input path="x">} (renders id/name x) and Struts {@code <html:text property="x">}. */
+    static Searcher formTagSearcher(String value) {
+        Pattern p = Pattern.compile("<\\w+:\\w+\\b[^>]*?\\b(?:path|property)\\s*=\\s*[\"']" + Pattern.quote(value) + "[\"']");
+        return text -> {
+            List<Hit> hits = new ArrayList<>();
+            if (!text.contains(value)) return hits;
+            Matcher m = p.matcher(text);
+            while (m.find()) hits.add(new Hit(m.start(), 97, "form tag"));
+            return hits;
+        };
+    }
+
+    /** Union of searchers. */
+    static Searcher any(Searcher... searchers) {
+        return text -> {
+            List<Hit> hits = new ArrayList<>();
+            for (Searcher s : searchers) hits.addAll(s.search(text));
+            return hits;
+        };
     }
 
     /** {@code scores} is aligned to the end of {@code patterns} (the optional function pattern comes first). */
@@ -424,22 +498,38 @@ public final class JspLocator {
         for (VirtualFile f : all) {
             byName.computeIfAbsent(f.getNameWithoutExtension().toLowerCase(Locale.ROOT), k -> new ArrayList<>()).add(f);
         }
+        LinkedHashMap<VirtualFile, Boolean> result = new LinkedHashMap<>();
+        // 1) the server-side mapping of the URL: Spring controller view / Tiles / Struts XML / direct *.jsp
+        String urlPath = req.page != null ? req.page.path : null;
+        if (notBlank(urlPath)) {
+            for (VirtualFile f : screenJsps(urlPath, all)) {
+                if (result.putIfAbsent(f, Boolean.TRUE) == null) addIncludes(f, byName, result, 0);
+            }
+        }
+        // 2) JSPs named after the nearest ancestor ids (a screen root like <div id="OrderListM">)
         List<String> names = new ArrayList<>();
         if (req.ancestors != null) {
             for (JumpRequest.Node a : req.ancestors) if (a != null && notBlank(a.id)) names.add(a.id);
         }
-        if (req.page != null && notBlank(req.page.path)) {
-            String p = req.page.path;
-            int slash = p.lastIndexOf('/');
-            String base = p.substring(slash + 1);
-            int dot = base.indexOf('.');
-            if (dot > 0) base = base.substring(0, dot);
+        // 3) the URL file name (/order/OrderListM.do -> OrderListM.jsp) when the mapping was not resolved
+        boolean resolved = !result.isEmpty();
+        if (!resolved && notBlank(urlPath)) {
+            String p = WebMappingResolver.stripExtension(WebMappingResolver.pathSuffixes(urlPath).get(0));
+            String base = p.substring(p.lastIndexOf('/') + 1);
             if (!base.isEmpty()) names.add(base);
         }
-        LinkedHashMap<VirtualFile, Boolean> result = new LinkedHashMap<>();
+        String parentSeg = parentSegment(urlPath);
         for (String n : names) {
             List<VirtualFile> files = byName.get(n.toLowerCase(Locale.ROOT));
             if (files == null) continue;
+            // a common name (list.jsp, form.jsp ...) in several folders: keep the ones under the URL's folder
+            if (files.size() > 1 && parentSeg != null) {
+                List<VirtualFile> narrowed = new ArrayList<>();
+                for (VirtualFile f : files) {
+                    if (("/" + relativePath(f).toLowerCase(Locale.ROOT)).contains("/" + parentSeg + "/")) narrowed.add(f);
+                }
+                if (!narrowed.isEmpty()) files = narrowed;
+            }
             for (VirtualFile f : files) {
                 if (result.putIfAbsent(f, Boolean.TRUE) == null) addIncludes(f, byName, result, 0);
             }
@@ -468,6 +558,113 @@ public final class JspLocator {
         }
         for (VirtualFile s : referenced) result.putIfAbsent(s, Boolean.TRUE);
         return new ArrayList<>(result.keySet());
+    }
+
+    /** How the screen's JSP was determined (shown in the browser / response). */
+    String screenInfo;
+
+    private static @Nullable String parentSegment(@Nullable String urlPath) {
+        if (urlPath == null) return null;
+        String p = WebMappingResolver.stripExtension(WebMappingResolver.pathSuffixes(urlPath).get(0));
+        String[] segs = p.split("/");
+        return segs.length >= 2 && !segs[segs.length - 2].isEmpty() ? segs[segs.length - 2].toLowerCase(Locale.ROOT) : null;
+    }
+
+    /** JSPs rendered for the URL according to controllers (via the word index), Tiles and Struts XML. */
+    private List<VirtualFile> screenJsps(String urlPath, List<VirtualFile> jsps) {
+        List<String> refs = new ArrayList<>();
+        List<String> info = new ArrayList<>();
+        String clean = WebMappingResolver.pathSuffixes(urlPath).get(0);
+        if (clean.endsWith(".jsp") || clean.endsWith(".jspf")) {
+            refs.addAll(WebMappingResolver.pathSuffixes(clean));
+            info.add("JSP URL");
+        }
+        // Spring MVC controllers containing a word of the URL
+        List<String> views = new ArrayList<>();
+        for (String token : WebMappingResolver.searchTokens(urlPath)) {
+            for (VirtualFile jf : sourceFilesWithWord(token)) {
+                String text = text(jf);
+                if (text == null) continue;
+                for (WebMappingResolver.ViewRef v : WebMappingResolver.viewsFromJava(urlPath, text)) {
+                    if (!views.contains(v.view())) views.add(v.view());
+                    info.add(jf.getName() + ":" + (lineNumber(text, v.offset()) + 1) + " → " + v.view());
+                }
+            }
+            if (!views.isEmpty()) break;
+        }
+        refs.addAll(views);
+        // Tiles definitions for the views, Struts actions for the URL
+        for (VirtualFile xf : cachedFiles("**/*.xml")) {
+            String text = text(xf);
+            if (text == null) continue;
+            if (text.contains("<definition")) {
+                for (String v : views) {
+                    List<String> t = WebMappingResolver.tilesJsps(v, text);
+                    if (!t.isEmpty()) {
+                        refs.addAll(t);
+                        info.add(xf.getName() + " → " + v);
+                    }
+                }
+            }
+            if (text.contains("<action")) {
+                List<String> a = WebMappingResolver.actionXmlJsps(urlPath, text);
+                if (!a.isEmpty()) {
+                    refs.addAll(a);
+                    info.add(xf.getName() + " → action");
+                }
+            }
+        }
+        List<VirtualFile> out = new ArrayList<>();
+        if (refs.isEmpty()) return out;
+        for (VirtualFile f : jsps) {
+            String rel = relativePath(f);
+            for (String r : refs) {
+                if (WebMappingResolver.jspMatches(rel, r)) {
+                    out.add(f);
+                    break;
+                }
+            }
+        }
+        if (!out.isEmpty()) screenInfo = String.join(", ", info.subList(0, Math.min(3, info.size())));
+        return out;
+    }
+
+    /** Java/Kotlin/Groovy sources containing the word (IntelliJ word index; skipped while indexing). */
+    private List<VirtualFile> sourceFilesWithWord(String word) {
+        List<VirtualFile> out = new ArrayList<>();
+        if (DumbService.isDumb(project)) return out;
+        try {
+            PsiSearchHelper.getInstance(project).processCandidateFilesForText(
+                    GlobalSearchScope.projectScope(project), UsageSearchContext.ANY, true, word, f -> {
+                        String ext = f.getExtension();
+                        if ("java".equals(ext) || "kt".equals(ext) || "groovy".equals(ext)) out.add(f);
+                        return out.size() < 300;
+                    });
+        } catch (RuntimeException e) {
+            if (e instanceof com.intellij.openapi.progress.ProcessCanceledException) throw e;
+            // index not ready → no controller hint
+        }
+        return out;
+    }
+
+    /** Message keys whose value in any *.properties equals the text. */
+    private List<String> messageKeys(String norm) {
+        List<String> keys = new ArrayList<>();
+        for (VirtualFile pf : cachedFiles("**/*.properties")) {
+            String text = text(pf);
+            if (text == null || !text.contains(firstWord(norm)) && !text.contains("\\u")) continue;
+            for (String k : MessageKeys.keysFor(text, norm)) {
+                if (!keys.contains(k)) keys.add(k);
+                if (keys.size() >= 5) return keys;
+            }
+        }
+        return keys;
+    }
+
+    private static int lineNumber(String text, int offset) {
+        int line = 0;
+        for (int i = 0; i < offset && i < text.length(); i++) if (text.charAt(i) == '\n') line++;
+        return line;
     }
 
     private void addIncludes(VirtualFile f, Map<String, List<VirtualFile>> byName,

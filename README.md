@@ -1,6 +1,6 @@
 # JSP Jump
 
-브라우저(크롬)에서 **로컬 서버로 띄운 화면**의 버튼·입력칸·AUIGrid 컬럼을 클릭하면, 로컬 IntelliJ가 그 요소를 정의한
+브라우저(크롬·엣지·웨일 등)에서 **로컬 서버로 띄운 화면**의 버튼·입력칸·그리드 컬럼을 클릭하면, 로컬 IntelliJ가 그 요소를 정의한
 **JSP 파일의 해당 줄**을 여는 IntelliJ 플러그인 + 북마클릿입니다. 개발자 도구의 "요소 선택"처럼
 **점프 모드를 켜고 한 번 클릭**하는 방식이라 크롬의 Alt/Ctrl/Shift+클릭 기본 동작과 겹치지 않습니다.
 
@@ -61,31 +61,50 @@ IntelliJ 내장 서버 포트는 기본 **63342**지만 고정은 아닙니다.
 4. `Esc` 또는 북마크를 다시 누르면 취소
 5. 결과는 화면 오른쪽 아래 토스트: 성공(파일:줄) / 후보 n개 / 못 찾음(사용한 단서·시도한 검색) / 연결 실패
 
-## 매칭 규칙 (우선순위 순)
+## 어떤 프로젝트에서 동작하나
 
-| 클릭 대상 | 사용하는 단서 | JSP 검색 |
+특정 프레임워크에 묶이지 않고 **Java 웹 프로젝트의 JSP 화면**이면 동작합니다. 소스는 PSI 없이 텍스트로 읽어서
+IntelliJ IDEA Community / Ultimate 모두 지원합니다.
+
+**화면(URL) → JSP 찾기**
+
+| 구성 | 해석 방법 |
+|---|---|
+| Spring MVC | URL → `@RequestMapping` / `@GetMapping` 등(클래스 + 메서드, `{변수}`, `*`, `.do` 같은 확장자, 컨텍스트 경로 포함) → `return "board/list"`, `new ModelAndView("...")`, `setViewName("...")`, `void` 핸들러는 URL 자체 → `.../board/list.jsp` |
+| Tiles | 뷰 이름 → `tiles*.xml`의 `<definition>`(`*/*` 같은 와일드카드와 `{1}` 치환 포함) → JSP 속성들 |
+| Struts 1 / 2 | `<action path="/board/list">` / `<action name="list">` 안의 `*.jsp` forward·result |
+| JSP 직접 호출 | `/admin/users.jsp` |
+| 위가 없을 때 | URL 파일명과 같은 JSP(`/order/OrderListM.do` → `OrderListM.jsp`, 같은 이름이 여러 개면 URL 폴더 기준), 화면 루트 요소 id와 같은 JSP |
+
+화면 JSP를 찾으면 그 JSP가 include하는 파일과 `<script src>`로 불러오는 JS까지 먼저 검색하고, 없으면 다른 JSP → 프로젝트 JS
+순서로 넓힙니다.
+
+**클릭한 요소 → 줄 찾기 (우선순위 순)**
+
+| 클릭 대상 | 단서 | 검색 |
 |---|---|---|
-| AUIGrid 헤더/셀 | 그리드 id, `dataField`(AUIGrid API로 헤더 → 컬럼 확인) | `.addColumnCustom("필드"`, `.addColumn("필드"`, `dataField: "필드"` (함수명 설정 가능) → 없으면 헤더 텍스트 |
-| id 있는 요소 | `id` | `id="x"`, `id=x`, `id=${접두어}x` (EL 접두어는 렌더링 id의 끝부분과 비교) |
-| name 있는 요소 | `name` | `name="x"`, `name=x` |
-| 버튼·라벨·th | 표시 텍스트 / 버튼 value | `value="조회"`, `>조회<` (공백·`&nbsp;`·`<br>` 무시) |
+| 그리드 헤더·셀 | 컬럼 키, 헤더 문구 | 컬럼 정의 `field:` `dataField:` `name:` `data:` `colId:` `dataIndex:` `accessorKey:` `binding:` `SaveName:` …, 헤더 `headerName:` `headerText:` `header:` `title:` `label:` …, `.addColumn("키", ...)` 같은 함수(설정), 일반 `<th>헤더</th>` |
+| id 있는 요소 | `id` | `id="x"`, `id=x`, `id=${접두어}x`, Spring `<form:input path="x">` |
+| name 있는 요소 | `name` | `name="x"`, Spring `path="x"`, Struts `<html:text property="x">` |
+| 버튼·라벨·th | 표시 문구 / 버튼 value | `value="저장"`, `>저장<` (공백·`&nbsp;`·`<br>` 무시) |
+| 다국어 문구 | 표시 문구 | `messages*.properties`(`\uXXXX` 포함)에서 문구 → 키 → `<spring:message code="키">`, `<fmt:message key="키">`, `'키'` |
 | 위가 모두 실패 | 가장 가까운 id 있는 조상 | 조상 id로 재시도 |
 
-- **JS 파일까지 추적**: 화면 JSP가 `<script src="/js/order/OrderGrid.js">`로 불러오는 JS를 그 JSP 바로 다음에 검색하고, 그래도 없으면 다른 JSP → 프로젝트 JS 전체 순서로 넓힙니다. 그리드 컬럼이 JS에 `addColumnCustom("orderNo", msg.orderNo, ...)`처럼 정의돼 있어도(헤더가 변수여도) `dataField`로 찾습니다.
-- **화면 JSP 우선**: URL(`/order/OrderListM.do` → `OrderListM.jsp`)과 조상 요소 id(예: `<div id="OrderListM">`)와
-  같은 이름의 JSP(와 그 JSP가 include하는 파일)를 먼저 찾고, 없으면 프로젝트 전체 JSP로 넓힙니다.
+**브라우저에서 그리드 컬럼 읽기**: AUIGrid(API), jqGrid, DataTables(API), AG Grid(`col-id`), Toast UI Grid(`data-column-name`),
+Tabulator(`tabulator-field`), Kendo(`data-field`), SlickGrid, ARIA 그리드(`aria-colindex`), 일반 `<thead>` 표.
+캔버스에 그리는 그리드(RealGrid 등)처럼 DOM에 컬럼 정보가 없으면 헤더 문구나 감싸는 영역으로 찾습니다.
+
 - 같은 문구가 한 파일에 여러 번 있으면, 클릭한 요소의 조상(form/div id) 안에 있는 쪽을 우선합니다.
 - **여러 프로젝트가 열려 있으면 화면을 띄운 프로젝트를 우선합니다.** IntelliJ에서 실행한 Tomcat이면 요청한 페이지의
-  포트(예: `localhost:8084`) → 그 Tomcat의 배포 경로(`docBase`) → 그 경로를 가진 프로젝트를 찾아 먼저 검색합니다.
-  화면 이름이 같은 JSP(`UserM.jsp` 등)가 다른 프로젝트에 있어도 엉뚱한 프로젝트가 열리지 않습니다. 찾지 못하면 다른 프로젝트로 넓힙니다.
-  (IntelliJ 밖에서 띄운 서버는 이 정보가 없어서 가장 잘 맞는 결과가 나온 프로젝트에서 엽니다.)
+  포트(예: `localhost:8080`) → 그 Tomcat의 배포 경로(`docBase`) → 그 경로를 가진 프로젝트를 찾아 먼저 검색합니다.
+  (IntelliJ 밖에서 띄운 서버는 가장 잘 맞는 결과가 나온 프로젝트에서 엽니다.)
 
 ## 설정 (Settings | Tools | JSP Jump)
 
 - 요청 허용 / IDE 창 앞으로 가져오기
 - 허용 Origin (기본 `http://localhost:*`, `http://127.0.0.1:*` 등. 사내 개발 서버 주소로 접속한다면 추가)
 - 검색 대상 JSP glob (기본 `**/*.jsp`, `**/*.jspf`, `**/*.tag`), JS glob (기본 `**/*.js`), 제외 glob (`**/target/**`, `**/*.min.js`, `**/AUIGrid/**` 등)
-- 그리드 컬럼 추가 함수명 (기본 `addColumnCustom, addColumn, addColumnInnerColspan`)
+- 그리드 컬럼 추가 함수명 (선택, 기본 `addColumnCustom, addColumn, addColumnInnerColspan`): `.함수("컬럼키", ...)` 형태로 컬럼을 만드는 프로젝트용. `field:` 같은 일반 컬럼 정의는 설정 없이 찾습니다
 
 ## 문제 해결
 
@@ -123,7 +142,7 @@ IntelliJ 내장 서버 포트는 기본 **63342**지만 고정은 아닙니다.
 
 ## English
 
-**JSP Jump** lets you click a button, input or AUIGrid column on a page served by your local server and jumps to the
+**JSP Jump** lets you click a button, input or grid column on a page served by your local server and jumps to the
 JSP line that defines it in IntelliJ IDEA.
 
 1. Install the plugin zip (*Settings | Plugins | Install Plugin from Disk*).
@@ -135,9 +154,14 @@ JSP line that defines it in IntelliJ IDEA.
 4. The IDE opens the matching JSP line; with several candidates a chooser popup appears. A toast in the page shows
    the result or the clues that were used when nothing was found.
 
-Matching uses `id` (also `id=${prefix}name` EL prefixes), `name`, AUIGrid `dataField` / header text
-(`.addColumnCustom("field", ...)`, `dataField: "field"`), visible text and the nearest ancestor id. JSP files named after
-the URL or the screen root element are searched first. Allowed origins, search globs and grid column function names are
+Works with any Java web project that renders JSPs (IntelliJ IDEA Community and Ultimate). The page URL is resolved to
+its JSP through Spring MVC controllers (`@RequestMapping` / `@GetMapping` ... → view name), Tiles definitions (with
+wildcards), Struts 1/2 action XML or direct `*.jsp` URLs; that JSP, its includes and the scripts it loads are searched
+first. The clicked element is matched by grid column definitions (`field:`, `dataField:`, `name:`, `data:`, `colId:`,
+`headerName:`, `title:` ...), `id` (also `id=${prefix}name` and Spring `<form:input path>`), `name`, visible text,
+message keys found in `messages*.properties` (`<spring:message code>` / `<fmt:message key>`) and the nearest ancestor id.
+Grid columns are read from AUIGrid, jqGrid, DataTables, AG Grid, Toast UI Grid, Tabulator, Kendo, SlickGrid, ARIA grids
+and plain `<thead>` tables. Allowed origins, search globs and grid column function names are
 configurable in *Settings | Tools | JSP Jump*. All traffic stays on `localhost`.
 
 The IDE built-in server port is 63342 by default but changes when several JetBrains IDEs run (63343, ...) or when it is

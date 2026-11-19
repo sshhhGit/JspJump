@@ -22,8 +22,8 @@
 
 1. **플러그인 설치** — IntelliJ *Settings | Plugins | ⚙ | Install Plugin from Disk...* 에서 `JspJump-x.y.z.zip` 선택
    (재시작 없이 바로 적용됩니다)
-2. **북마크 추가 (브라우저당 처음 한 번)** — JSP Jump를 설치하면 북마크 추가 페이지(<http://localhost:63342/jspjump/install>)가
-   브라우저에 자동으로 열리고 IDE에 안내 알림이 뜹니다(재설치 포함, IDE를 그냥 켤 때나 버전 업데이트 때는 뜨지 않음).
+2. **북마크 추가 (브라우저당 처음 한 번)** — JSP Jump를 설치하면 IDE에 안내 알림이 뜹니다(재설치 포함, IDE를 그냥 켤 때나
+   버전 업데이트 때는 뜨지 않음). 알림의 **북마크 추가 페이지 열기**를 누르면 <http://localhost:63342/jspjump/install>이 열립니다.
    파란 **JSP Jump** 버튼을 크롬 북마크바로 끌어다 놓으세요.
    (다시 열기: *Tools | JSP Jump: Add Browser Bookmark...*)
    (북마크바가 안 보이면 `Ctrl+Shift+B`)
@@ -146,7 +146,7 @@ Tabulator(`tabulator-field`), Kendo(`data-field`), SlickGrid, ARIA 그리드(`ar
 JSP line that defines it in IntelliJ IDEA.
 
 1. Install the plugin zip (*Settings | Plugins | Install Plugin from Disk*).
-2. When JSP Jump is installed, the bookmark page opens in your browser with an IDE notification (again:
+2. When JSP Jump is installed, an IDE notification appears: click **Add bookmark** to open the bookmark page (again:
    *Tools | JSP Jump: Add Browser Bookmark...*, or <http://localhost:63342/jspjump/install>). Drag the
    **JSP Jump** button to the bookmarks bar. This is needed once per browser: only a script running in the page can
    intercept the click.

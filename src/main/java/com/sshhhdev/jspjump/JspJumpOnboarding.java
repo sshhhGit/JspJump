@@ -22,8 +22,8 @@ import java.net.URL;
 
 /**
  * The plugin is useless until the browser bookmark exists, and an IDE plugin cannot add a bookmark itself.
- * So when JSP Jump is installed (also re-installed), the bookmark page is opened in the browser and a sticky
- * notification asks to add the bookmark. Nothing is shown on a normal IDE start or after a version update.
+ * So when JSP Jump is installed (also re-installed), a sticky notification asks to add the bookmark and opens the
+ * bookmark page when its button is clicked. Nothing is shown on a normal IDE start or after a version update.
  * <p>
  * Installation is detected by the plugin jar (path + modification time) differing from the one recorded last time:
  * <ul>
@@ -71,15 +71,15 @@ public final class JspJumpOnboarding implements ProjectActivity, DynamicPluginLi
         if (!update) showGuide(project);
     }
 
+    /** The page is opened only when the user clicks the button (nothing is opened without user action). */
     static void showGuide(@Nullable Project project) {
-        BrowserUtil.browse(JspJumpNotifications.installPageUrl());
-
         Notification n = NotificationGroupManager.getInstance().getNotificationGroup(GROUP).createNotification(
                 "JSP Jump: 브라우저 북마크를 추가하세요",
-                "북마크가 있어야 크롬 화면에서 점프할 수 있습니다. 열린 페이지에서 파란 <b>JSP Jump</b> 버튼을 "
-                        + "크롬 북마크바로 끌어다 놓으세요.<br/>"
-                        + "Add the <b>JSP Jump</b> bookmark: drag the blue button on the opened page onto the bookmarks bar.",
-                NotificationType.WARNING);
+                "북마크가 있어야 브라우저 화면에서 점프할 수 있습니다. 아래 <b>북마크 추가 페이지 열기</b>를 누르고, "
+                        + "열린 페이지의 파란 <b>JSP Jump</b> 버튼을 브라우저 북마크바로 끌어다 놓으세요.<br/>"
+                        + "Add the <b>JSP Jump</b> bookmark: click <b>Add bookmark</b> below and drag the blue button "
+                        + "on that page onto the bookmarks bar.",
+                NotificationType.INFORMATION);
         n.addAction(NotificationAction.createSimple("북마크 추가 페이지 열기 (Add bookmark)",
                 () -> BrowserUtil.browse(JspJumpNotifications.installPageUrl())));
         n.addAction(NotificationAction.createSimpleExpiring("닫기 (Close)", () -> {

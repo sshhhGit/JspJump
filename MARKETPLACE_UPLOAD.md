@@ -49,7 +49,7 @@
   `POST`는 설정의 허용 Origin(기본 `http://localhost:*`, `http://127.0.0.1:*`)에서 온 요청만 처리한다. 외부로 보내는 통신은 없다.
 - **java.awt.Robot**: Windows에서 IDE 창을 앞으로 가져올 때만, 마우스를 현재 위치로 다시 옮기는 입력 한 번을 만든다(화면 변화 없음).
   설정의 "Bring the IDE window to front"를 끄면 사용하지 않는다.
-- **브라우저 열기**: 플러그인 설치 직후 한 번만 북마크 추가 페이지(`http://localhost:<port>/jspjump/install`)를 연다.
+- **브라우저 열기**: 사용자가 알림의 버튼, Tools 메뉴, 설정 화면 버튼을 눌렀을 때만 북마크 추가 페이지(`http://localhost:<port>/jspjump/install`)를 연다. 자동으로 여는 경우는 없다.
 
 ## 6. 다음 버전부터 (CLI 업로드)
 
